@@ -4,6 +4,8 @@ let mainPort;
 // listen for message from main, run content script if asked
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // pass any received message along to main.js
+  console.log('mainPort', mainPort);
+  console.log('request', request);
   if (request) {
     if (mainPort) {
       mainPort.postMessage({ body: request.body });

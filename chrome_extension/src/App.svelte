@@ -2,6 +2,7 @@
   // value coming into App.svelte that updates state will be in an array,
   // we need to update our state by adding new elements into the existing array
   import State from './State.svelte';
+  import { onMount } from 'svelte';
   export let snapshots = [];
   let activeIndex = 0;
   $: compState = snapshots[activeIndex];
@@ -28,44 +29,43 @@
     connectButton.style.visibility = 'hidden';
   }
 
+  
+
   // injects logic into inspected webpage's DOM
-  function updateScript() {
-    mainToBgPort.postMessage({
+  async function updateScript() {
+    await mainToBgPort.postMessage({
       body: 'runContentScript',
     });
-    mainToBgPort.postMessage({
-      body: 'updateScript',
-      script: bundleResource,
+    chrome.devtools.inspectedWindow.getResources((resources) => {
+      // search for bundle file, make sure its named bundle.js
+      for (let i = 0; i < resources.length; i++) {
+        if (resources[i].url.endsWith('bundle.js')) {
+          resources[i].getContent((content, encoding) => {
+            mainToBgPort.postMessage({
+              body: 'updateScript',
+              script: content,
+            });
+          });
+        }
+      }
     });
   }
 
   // handles click and invokes connect() then updateScript()
-  function handleClick() {
+  onMount(async () => {
     connect();
-    updateScript();
-  }
+    await updateScript();
+  })
 
   const sendCtxIndex = (i) => {
     mainToBgPort.postMessage({ body: 'updateCtx', ctxIndex: i });
   };
-
-  let bundleResource;
-  chrome.devtools.inspectedWindow.getResources((resources) => {
-    // search for bundle file, probably first thing in resources array with type 'script'
-    for (let i = 0; i < resources.length; i++) {
-      if (resources[i].type === 'script') {
-        resources[i].getContent((content, encoding) => {
-          bundleResource = content;
-        });
-        break;
-      }
-    }
-  });
+  
 </script>
 
 <div>
   <span>
-    <button id="connectButton" on:click={handleClick}>Connect</button>
+    <button id="connectButton">Connect</button>
   </span>
 </div>
 <div id="main-page">
